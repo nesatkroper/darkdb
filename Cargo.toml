@@ -1,6 +1,6 @@
 [package]
 name = "darkdb"
-default-run = "darkdb-cli"
+default-run = "cli"
 version = "0.1.0"
 edition = "2024"
 

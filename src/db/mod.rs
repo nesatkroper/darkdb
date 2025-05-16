@@ -81,6 +81,7 @@ impl Collection {
 
         let mut docs = self.documents.write().map_err(|_| DbError::LockPoisoned)?;
         docs.insert(id.clone(), doc.clone());
+        drop(docs);
         self.persist()?;
         info!("Inserted document with ID: {}", id);
         Ok(doc)
@@ -200,8 +201,10 @@ impl Database {
                             docs.retain(|_, doc| doc.expires_at.map_or(true, |exp| exp > now));
                             let after = docs.len();
 
+                            drop(docs); // ✅ release write lock before persisting
+
                             if before != after {
-                                let _ = col.persist();
+                                let _ = col.persist(); // ✅ safe now
                                 debug!(
                                     "Cleaned {} expired documents from {}",
                                     before - after,
@@ -209,9 +212,67 @@ impl Database {
                                 );
                             }
                         }
+
+                        // if let Ok(mut docs) = col.documents.write() {
+                        //     let now = Utc::now();
+                        //     let before = docs.len();
+                        //     docs.retain(|_, doc| doc.expires_at.map_or(true, |exp| exp > now));
+                        //     let after = docs.len();
+
+                        //     if before != after {
+                        //         let _ = col.persist();
+                        //         debug!(
+                        //             "Cleaned {} expired documents from {}",
+                        //             before - after,
+                        //             col.name()
+                        //         );
+                        //     }
+                        // }
                     }
                 }
             }
         });
     }
+
+    pub fn create_collection(&self, name: &str) -> Result<(), DbError> {
+        let path = self.path.join(format!("{}.json", name));
+        if path.exists() {
+            return Err(DbError::CollectionNotFound); // or custom error CollectionAlreadyExists
+        }
+        fs::create_dir_all(&self.path)?;
+        // Write empty JSON object to create empty collection file
+        fs::write(path, "{}")?;
+        info!("Created new empty collection file: {}", name);
+        Ok(())
+    }
 }
+
+// let documents = if path.exists() {
+//     info!("Loading existing collection: {}", name);
+//     let raw = fs::read_to_string(&path)?;
+//     serde_json::from_str(&raw)?
+// } else {
+//     fs::create_dir_all(db_path)?;
+
+//     // Sample initial document as JSON map (empty collection but with a sample doc)
+//     let sample_doc = serde_json::json!({
+//         "sample_id": {
+//             "id": "sample_id",
+//             "data": {
+//                 "message": "This is a sample document"
+//             },
+//             "created_at": chrono::Utc::now().to_rfc3339(),
+//             "updated_at": chrono::Utc::now().to_rfc3339(),
+//             "expires_at": null
+//         }
+//     });
+
+//     // Write sample JSON to file
+//     fs::write(&path, serde_json::to_string_pretty(&sample_doc)?)?;
+
+//     info!("Created new collection file with sample data at: {}", path.display());
+
+//     // Return the HashMap from sample_doc
+//     let map: HashMap<String, Document> = serde_json::from_value(sample_doc)?;
+//     map
+// };

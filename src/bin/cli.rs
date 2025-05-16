@@ -5,7 +5,7 @@ use serde_json::Value;
 use tracing_subscriber;
 
 #[derive(Parser)]
-#[command(name = "darkdb-cli")]
+#[command(name = "cli")]
 #[command(about = "CLI for DarkDB", long_about = None)]
 #[command(version)]
 struct Cli {
@@ -42,6 +42,7 @@ enum Commands {
 
 fn init_logging() {
     tracing_subscriber::fmt()
+        .with_env_filter("debug")
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 }
@@ -50,11 +51,13 @@ fn main() -> Result<(), DbError> {
     init_logging();
     let cli = Cli::parse();
     let db = Database::new("data")?;
-    db.start_ttl_cleaner(60); // Clean every 60 seconds
+    // db.start_ttl_cleaner(10); // Clean every 60 seconds
 
     match cli.command {
         Commands::Create { name } => {
             db.collection(&name)?;
+            println!("Created collection: {}", name);
+            db.create_collection(&name)?;
             println!("Created collection: {}", name);
         }
         Commands::Insert {
@@ -62,10 +65,14 @@ fn main() -> Result<(), DbError> {
             json,
             ttl,
         } => {
+            // let mut docs = self.documents.write().map_err(|_| DbError::LockPoisoned)?;
             let col = db.collection(&collection)?;
+            println!("Parsing JSON: {}", &json);
             let value: Value = serde_json::from_str(&json)?;
+            println!("Inserting...");
             let doc = col.insert(value, ttl)?;
             println!("Inserted document with ID: {}", doc.id);
+            // println!("Parsed JSON: {}",);
         }
         Commands::Find { collection, id } => {
             let col = db.collection(&collection)?;

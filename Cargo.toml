@@ -14,3 +14,40 @@ uuid = { version = "1.0", features = ["v4"] }
 clap = { version = "4.0", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum = { version = "0.8.4", features = ["macros"] }
+tower-http = { version = "0.6.4", features = ["cors"] }
+bcrypt = "0.17"
+async-trait = "0.1.88"
+axum-extra = { version = "0.10.1", features = ["typed-header"] }
+structopt = "0.3"
+anyhow = "1.0"
+base64 = "0.22.1"
+
+
+
+
+
+
+# [package]
+# name = "darkdb"
+# default-run = "cli"
+# version = "0.1.0"
+# edition = "2024"
+
+# [dependencies]
+# serde = { version = "1.0", features = ["derive"] }
+# serde_json = "1.0"
+# chrono = { version = "0.4", features = ["serde"] }
+# thiserror = "2.0"
+# tokio = { version = "1.0", features = ["full"] }
+# uuid = { version = "1.0", features = ["v4"] }
+# clap = { version = "4.0", features = ["derive"] }
+# tracing = "0.1"
+# tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# axum = "0.8.4"
+# tower-http = { version = "0.6.4", features = ["cors"] }
+# bcrypt = "0.17"
+# async-trait = "0.1"
+# axum-extra = { version = "0.10.1", features = ["typed-header"] }
+# structopt = "0.3"
+# anyhow = "1.0"

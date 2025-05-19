@@ -50,7 +50,9 @@ fn init_logging() {
 fn main() -> Result<(), DbError> {
     init_logging();
     let cli = Cli::parse();
-    let db = Database::new("data")?;
+    // let db = Database::new("data")?;
+    let db = Database::load("data")?;
+
     // db.start_ttl_cleaner(10); // Clean every 60 seconds
 
     match cli.command {

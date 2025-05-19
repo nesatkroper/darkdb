@@ -98,16 +98,21 @@ impl Collection {
     }
 
     pub fn update(&self, id: &str, data: serde_json::Value) -> Result<Document, DbError> {
+        // 1. Lock documents
         let mut docs = self.documents.write().map_err(|_| DbError::LockPoisoned)?;
-        let doc = docs.get_mut(id).ok_or(DbError::NotFound)?;
 
+        // 2. Find and update
+        let doc = docs.get_mut(id).ok_or(DbError::NotFound)?;
         doc.data = data;
         doc.updated_at = Utc::now();
-        let doc = doc.clone();
+        let updated_doc = doc.clone();
+
+        drop(docs);
 
         self.persist()?;
+
         info!("Updated document with ID: {}", id);
-        Ok(doc)
+        Ok(updated_doc)
     }
 
     pub fn delete(&self, id: &str) -> Result<(), DbError> {
@@ -144,6 +149,36 @@ pub struct Database {
 }
 
 impl Database {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, DbError> {
+        let path = path.as_ref().to_path_buf();
+        info!("Loading database from: {}", path.display());
+
+        let mut collections = HashMap::new();
+
+        if path.exists() {
+            for entry in fs::read_dir(&path)? {
+                let entry = entry?;
+                let entry_path = entry.path();
+
+                if entry_path.extension().and_then(|s| s.to_str()) == Some("json") {
+                    let file_name = entry_path
+                        .file_stem()
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string();
+                    info!("Loading collection: {}", file_name);
+                    let collection = Collection::new(&file_name, &path)?;
+                    collections.insert(file_name, collection);
+                }
+            }
+        }
+
+        Ok(Self {
+            path,
+            collections: Arc::new(RwLock::new(collections)),
+        })
+    }
+
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, DbError> {
         let path = path.as_ref().to_path_buf();
         info!("Initializing database at: {}", path.display());
@@ -246,33 +281,3 @@ impl Database {
         Ok(())
     }
 }
-
-// let documents = if path.exists() {
-//     info!("Loading existing collection: {}", name);
-//     let raw = fs::read_to_string(&path)?;
-//     serde_json::from_str(&raw)?
-// } else {
-//     fs::create_dir_all(db_path)?;
-
-//     // Sample initial document as JSON map (empty collection but with a sample doc)
-//     let sample_doc = serde_json::json!({
-//         "sample_id": {
-//             "id": "sample_id",
-//             "data": {
-//                 "message": "This is a sample document"
-//             },
-//             "created_at": chrono::Utc::now().to_rfc3339(),
-//             "updated_at": chrono::Utc::now().to_rfc3339(),
-//             "expires_at": null
-//         }
-//     });
-
-//     // Write sample JSON to file
-//     fs::write(&path, serde_json::to_string_pretty(&sample_doc)?)?;
-
-//     info!("Created new collection file with sample data at: {}", path.display());
-
-//     // Return the HashMap from sample_doc
-//     let map: HashMap<String, Document> = serde_json::from_value(sample_doc)?;
-//     map
-// };
